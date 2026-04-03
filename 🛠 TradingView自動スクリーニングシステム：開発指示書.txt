@@ -1,0 +1,43 @@
+🛠 TradingView自動スクリーニングシステム：開発指示書
+1. プロジェクト概要
+TradingViewのプライベートセッション（Cookie）を利用し、カスタムスクリーナーで抽出された銘柄リストとその詳細データ（価格、RSI）を朝４時４０分（米国市場が閉まるギリギリの時間）
+に取得し、データフレーム化（またはCSV保存）するPythonシステムを構築する。
+
+2. 技術スタック
+Language: Python 3.x
+
+Libraries: requests, pandas, datetime, time
+
+Auth Method: Session Cookie (sessionid)   3r03duozevct5wxvmmxpfwlzi41aac3q
+
+3. 具体的な実装指示
+Role: Expert Python Developer / Web Scraping Specialist
+
+Task: > TradingViewの内部APIを叩き、自分のアカウントのセッションを利用して銘柄データを取得するスクリプトを作成してください。（おそらく米国株式のスクリーニング結果が出ていると思われる）
+
+Requirements:
+
+認証設定: sessionid を含むヘッダー（Headers）を構成し、認証済みのリクエストを送信すること。
+
+取得データ: 以下のカラムを抽出してPandas DataFrameにまとめること。
+
+銘柄コード（Ticker）
+
+現在値（close）
+
+RSI(2) ※デフォルトの14ではなく、2期間の設定
+
+200日移動平均線（SMA200）
+Sessionid先のスクリーニング画面では写っているはず
+
+エラーハンドリング: 401 Unauthorized が出た場合に「Cookieの更新が必要です」と通知する処理を入れること。
+
+Variables:
+
+SESSION_ID = "3r03duozevct5wxvmmxpfwlzi41aac3q"
+
+Code Structure:
+
+main.py: メインの実行ロジック
+
+config.py: 設定値（IDや時間間隔）の管理（推奨）

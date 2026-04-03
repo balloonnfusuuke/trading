@@ -1,0 +1,21 @@
+# 秘密情報・ローカル専用（リポジトリに載せない）
+config.py
+scheduler_state.json
+positions.json
+pnl_log.csv
+.env
+.env.*
+
+# ログ・生成物
+*.log
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# スクリーニング出力（任意でコミットしたい場合は次行を消す）
+*_screening_*.csv
+screening_result_*.csv
+
+# 旧バックアップ内にも秘密設定があるため除外
+backup_v1/

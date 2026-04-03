@@ -1,0 +1,29 @@
+# Mac / PC がオフでも平日 15:10 JST 前後に日本株スクリーニングを Discord へ送る。
+# リポジトリの Secrets に TV_SESSION_ID と DISCORD_WEBHOOK_URL を登録すること。
+# Mac でも常に同時刻に動かすと二重通知になるため、クラウド本番にする場合はローカルの常駐を止める。
+name: JP screening → Discord
+
+on:
+  schedule:
+    # 15:10 JST = 06:10 UTC（月〜金）
+    - cron: "10 6 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run JP screening
+        env:
+          TV_SESSION_ID: ${{ secrets.TV_SESSION_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python main.py --jp-now

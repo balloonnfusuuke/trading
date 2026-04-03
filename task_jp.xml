@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>日本株 Connors RSI(2) スクリーニング（毎日 15:10）</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-04-01T15:10:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <WakeToRun>true</WakeToRun>
+    <ExecutionTimeLimit>PT10M</ExecutionTimeLimit>
+    <Priority>7</Priority>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+  </Settings>
+  <Actions>
+    <Exec>
+      <Command>C:\Users\Owner\AppData\Local\Programs\Python\Python311\python.exe</Command>
+      <Arguments>"C:\Users\Owner\OneDrive\ドキュメント\Trading\main.py" --jp-now</Arguments>
+      <WorkingDirectory>C:\Users\Owner\OneDrive\ドキュメント\Trading</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
