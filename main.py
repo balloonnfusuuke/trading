@@ -20,6 +20,7 @@ import logging
 import threading
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 # Windows コンソールでの UTF-8 エンコード問題を回避（絵文字・日本語を正しく表示）
 if hasattr(sys.stdout, "buffer"):
@@ -101,8 +102,8 @@ def fetch_screening_data(market: dict) -> pd.DataFrame:
         logger.error("=" * 55)
         logger.error(f"  [{market['name']}] 認証エラー（401 Unauthorized）")
         logger.error("  ⚠️  Cookie（SESSION_ID）の更新が必要です。")
-        logger.error("  TradingView に再ログインして config.py の")
-        logger.error("  SESSION_ID を最新の値に書き換えてください。")
+        logger.error("  TradingView に再ログインし、config.py の SESSION_ID を更新するか、")
+        logger.error("  GitHub Actions の場合は Secrets の TV_SESSION_ID を更新してください。")
         logger.error("=" * 55)
         sys.exit(1)
 
@@ -869,6 +870,57 @@ def format_pnl_section(closed_today: list, still_open: list,
     return lines
 
 
+def format_positions_detail_section(
+    still_open: list, price_data: dict, market: dict
+) -> list:
+    """
+    保有中ポジションの現在値・損切・利確ライン・RSI を列挙する（スクリーニング 0 件時の本文用）。
+    """
+    if not still_open:
+        return []
+
+    currency = market.get("currency", "JPY")
+    cur_sym = "¥" if currency == "JPY" else "$"
+
+    def fm(v):
+        return f"{cur_sym}{v:,.1f}"
+
+    lines: list = ["", "━━ 保有ポジション（現在値・損切・利確）━━"]
+    for p in still_open:
+        tk = p["ticker"]
+        dat = price_data.get(tk) or {}
+        close_px = dat.get("close")
+        if close_px is None:
+            close_px = p.get("current_price", p.get("entry_price"))
+        entry = float(p["entry_price"])
+        shares = int(p["shares"])
+        unreal = (close_px - entry) * shares if close_px is not None else p.get(
+            "unrealized_pnl", 0
+        )
+        pct = (close_px - entry) / entry * 100 if close_px is not None and entry else 0.0
+        rsi2 = dat.get("rsi2")
+        sl = p.get("stop_loss")
+        t1, t2, t3 = p.get("target1"), p.get("target2"), p.get("target3")
+        days = p.get("days_held", 0)
+
+        lines.append(f"  【{tk}】 {days}日目  登録スコア:{p.get('score', '-')}")
+        u_sign = "+" if unreal >= 0 else ""
+        lines.append(
+            f"    取得{fm(entry)} → 現在{fm(close_px)} ({pct:+.1f}%)  "
+            f"評価{u_sign}{cur_sym}{abs(unreal):,.0f}"
+        )
+        lines.append(
+            f"    損切{fm(sl)}  利確①{fm(t1)}  利確②{fm(t2)}  利確③{fm(t3)}"
+        )
+        if rsi2 is not None:
+            lines.append(
+                f"    RSI(2):{rsi2:.2f}  （出口目安 RSI>{config.EXIT_RSI_THRESHOLD}）"
+            )
+        lines.append("")
+
+    return lines
+
+
 # ─── LINE 通知 ─────────────────────────────────────────────────
 def format_line_message(df: pd.DataFrame, market: dict,
                         recs: list = None,
@@ -876,7 +928,8 @@ def format_line_message(df: pd.DataFrame, market: dict,
                         still_open: list = None,
                         cum_pnl: float = 0.0,
                         swaps: list = None,
-                        executed_swaps: list = None) -> str:
+                        executed_swaps: list = None,
+                        position_price_data: Optional[dict] = None) -> str:
     """スコアリング付き分析レポートを Discord 送信用テキストにフォーマットする。"""
     now      = datetime.now().strftime("%Y/%m/%d %H:%M")
     unit     = market["cap_unit"]
@@ -899,9 +952,13 @@ def format_line_message(df: pd.DataFrame, market: dict,
     lines = [
         f"{flag} {name} Connors RSI(2)戦略",
         f"📅 {now}",
-        "",
-        "【スクリーニング条件】",
     ]
+    if df.empty:
+        lines += ["⚠️ スクリーニング該当: 0 件（収支・保有の状況は以下）", ""]
+    else:
+        lines.append("")
+
+    lines.append("【スクリーニング条件】")
     for c in criteria:
         lines.append(f"  ✔ {c}")
 
@@ -909,6 +966,12 @@ def format_line_message(df: pd.DataFrame, market: dict,
     if closed_today is not None or still_open is not None:
         lines += format_pnl_section(
             closed_today or [], still_open or [], cum_pnl, market
+        )
+
+    # 該当銘柄なしでも、保有があれば株価・利確を明示
+    if df.empty and still_open:
+        lines += format_positions_detail_section(
+            still_open, position_price_data or {}, market
         )
 
     # ── ポジション入れ替え推奨 ────────────────────────────────
@@ -1037,10 +1100,21 @@ def send_discord_message(text: str, market_name: str) -> bool:
     Discord Incoming Webhook でスクリーニングレポートを送信する。
     2000文字を超える場合は複数回に分割して送信する。
     """
-    url = config.DISCORD_WEBHOOK_URL
+    url = (config.DISCORD_WEBHOOK_URL or "").strip()
     if not url:
         logger.warning(f"[{market_name}] DISCORD_WEBHOOK_URL が未設定です。")
         return False
+
+    # 診断用（トークンはログに出さない）
+    if "/webhooks/" in url:
+        _pre, _, _rest = url.partition("/webhooks/")
+        _wid = _rest.split("/")[0] if _rest else "?"
+        logger.info(
+            f"[{market_name}] Discord 送信: host={_pre.split('//')[-1]} "
+            f"webhook_id={_wid} url_len={len(url)}"
+        )
+    else:
+        logger.warning(f"[{market_name}] Discord URL に /webhooks/ がありません（貼り間違いの可能性）")
 
     # 行単位で 1900 文字以内に分割（Discord の 2000 文字制限に対応）
     chunks = []
@@ -1062,6 +1136,7 @@ def send_discord_message(text: str, market_name: str) -> bool:
         for chunk in chunks:
             payload = {"content": f"```\n{chunk}\n```"}
             res = requests.post(url, json=payload, timeout=15)
+            logger.info(f"[{market_name}] Discord HTTP 応答: {res.status_code}")
             if res.status_code not in (200, 204):
                 logger.error(f"[{market_name}] Discord 送信失敗: {res.status_code} {res.text[:200]}")
                 return False
@@ -1108,7 +1183,28 @@ def run(market: dict):
     print()
 
     if df.empty:
-        logger.warning(f"[{name}] データが空のため CSV / Discord 通知をスキップします。")
+        logger.warning(
+            f"[{name}] スクリーニング該当 0 件。CSV はスキップし、収支・保有の Discord レポートを送ります。"
+        )
+        price_for_msg: dict = {}
+        if still_open:
+            price_for_msg = fetch_position_data(
+                [p["ticker"] for p in still_open], market
+            )
+        msg = format_line_message(
+            df,
+            market,
+            recs=[],
+            closed_today=closed_today,
+            still_open=still_open,
+            cum_pnl=cum_pnl,
+            swaps=[],
+            executed_swaps=[],
+            position_price_data=price_for_msg,
+        )
+        if not send_discord_message(msg, name):
+            logger.error(f"[{name}] Discord 送信失敗のため異常終了します。")
+            sys.exit(1)
         mark_market_ran_today(market["market_key"])
         return
 
@@ -1137,7 +1233,9 @@ def run(market: dict):
                               cum_pnl=cum_pnl,
                               swaps=swaps,
                               executed_swaps=executed)
-    send_discord_message(msg, name)
+    if not send_discord_message(msg, name):
+        logger.error(f"[{name}] Discord 送信失敗のため異常終了します。")
+        sys.exit(1)
 
     # ⑥ 新規推奨をポジションに登録（Discord送信後・入れ替えで登録済みを除く）
     add_new_positions(recs, market)
