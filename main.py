@@ -863,9 +863,16 @@ def format_pnl_section(closed_today: list, still_open: list,
                 f"評価{'+' if unreal>=0 else ''}{fm(unreal)}"
             )
 
-    # ── 累計 ────────────────────────────────────────────────────
+    # ── 累計（pnl_log.csv の確定済みトレード合計）────────────────
     sign = "+" if cum_pnl >= 0 else ""
-    lines.append(f"【累計損益】{sign}{fm(cum_pnl)}")
+    lines.append(f"【累計損益（確定のみ）】{sign}{fm(cum_pnl)}")
+
+    # ── 合計（確定 + いまの含み益）monitor の時間レポートに揃える ─
+    unreal_total = sum(p.get("unrealized_pnl", 0) for p in still_open)
+    if still_open:
+        grand = cum_pnl + unreal_total
+        g_sign = "+" if grand >= 0 else ""
+        lines.append(f"【合計損益（確定＋含み）】{g_sign}{fm(grand)}")
 
     return lines
 
@@ -963,10 +970,13 @@ def format_line_message(df: pd.DataFrame, market: dict,
         lines.append(f"  ✔ {c}")
 
     # ── 収支サマリー（PnL）──────────────────────────────────────
-    if closed_today is not None or still_open is not None:
-        lines += format_pnl_section(
-            closed_today or [], still_open or [], cum_pnl, market
-        )
+    # closed/still が None でも累計・本日収支ブロックは必ず出す（None は空リスト扱い）
+    lines += format_pnl_section(
+        closed_today if closed_today is not None else [],
+        still_open if still_open is not None else [],
+        float(cum_pnl) if cum_pnl is not None else 0.0,
+        market,
+    )
 
     # 該当銘柄なしでも、保有があれば株価・利確を明示
     if df.empty and still_open:
