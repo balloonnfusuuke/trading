@@ -28,6 +28,16 @@ jobs:
             echo "::error::Settings → Secrets → Actions で TV_SESSION_ID と DISCORD_WEBHOOK_URL を両方設定してください（名前は大文字小文字まで一致）。"
             exit 1
           fi
+          echo "TV_SESSION_ID 文字数: ${#TV_SESSION_ID}"
+          echo "DISCORD_WEBHOOK_URL 文字数: ${#DISCORD_WEBHOOK_URL} （目安 110〜130 前後）"
+          case "$DISCORD_WEBHOOK_URL" in
+            https://discord.com/api/webhooks/*|https://discordapp.com/api/webhooks/*)
+              echo "Discord Webhook URL の先頭形式: OK"
+              ;;
+            *)
+              echo "::warning::URL が https://discord.com/api/webhooks/ で始まっていません。コピー漏れ・余計なスペースがないか確認してください。"
+              ;;
+          esac
 
       - name: Install deps
         run: pip install -r requirements.txt

@@ -1,0 +1,35 @@
+# Discord にだけ短いテストメッセージを送る（スクリーニングはしない）。
+# Actions タブ → このワークフロー → Run workflow で実行。
+# ログに HTTP ステータスが出るので、届かない原因切り分けに使う。
+name: Discord ping（診断）
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Secret 形式（値は出さない）
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "::error::DISCORD_WEBHOOK_URL が空です。Repository secrets に登録してください。"
+            exit 1
+          fi
+          echo "DISCORD_WEBHOOK_URL 文字数: ${#DISCORD_WEBHOOK_URL}"
+
+      - name: Discord へ ping 送信
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python scripts/discord_ping.py
