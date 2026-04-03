@@ -865,7 +865,7 @@ def format_pnl_section(closed_today: list, still_open: list,
 
     # ── 累計（pnl_log.csv の確定済みトレード合計）────────────────
     sign = "+" if cum_pnl >= 0 else ""
-    lines.append(f"【累計損益（確定のみ）】{sign}{fm(cum_pnl)}")
+    lines.append(f"【累計損益】{sign}{fm(cum_pnl)}")
 
     # ── 合計（確定 + いまの含み益）monitor の時間レポートに揃える ─
     unreal_total = sum(p.get("unrealized_pnl", 0) for p in still_open)

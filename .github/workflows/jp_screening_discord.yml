@@ -1,6 +1,20 @@
 # Mac / PC がオフでも平日 15:10 JST 前後に日本株スクリーニングを Discord へ送る。
-# リポジトリの Secrets に TV_SESSION_ID と DISCORD_WEBHOOK_URL を登録すること。
-# Mac でも常に同時刻に動かすと二重通知になるため、クラウド本番にする場合はローカルの常駐を止める。
+# Secrets: TV_SESSION_ID, DISCORD_WEBHOOK_URL
+#
+# ■ 手元と同じ内容のレポートにするには
+#   リポジトリに positions.json と pnl_log.csv をコミットする（Private 必須）。
+#   Actions は毎回クリーンなので、この2つが無いと保有・累計・クローズ履歴が空になる。
+#   ローカルで main 実行後に変更があれば push してから定時実行させる。
+#
+# ■ スクリーニング件数が常に 0 だけになる場合
+#   TradingView がデータセンター IP を弾いている可能性あり。セッション更新も確認。
+#
+# ■ ローカル実行と「完全に同じ」Discord にしたい場合
+#   ① 同一コミット: positions.json / pnl_log.csv / main.py を push した状態で実行する。
+#   ② Secrets の TV_SESSION_ID がローカル config と同じ最新値であること。
+#   ③ 上記でもスクリーニング結果だけ違う → GitHub の IP からは TV が別応答を返している。
+#      そのときは「自宅 PC / Mac を self-hosted runner」にするか、スクリーニングはローカルだけにする。
+#      https://docs.github.com/actions/hosting-your-own-runners
 name: JP screening → Discord
 
 on:
@@ -45,6 +59,20 @@ jobs:
       # config.py は秘密のため Git に含めていない。CI では example を複製し Secrets は環境変数で上書き。
       - name: config.py を生成
         run: cp config.example.py config.py
+
+      - name: 状態ファイル（手元と揃えるなら Git にコミット）
+        run: |
+          if [ -f positions.json ]; then
+            echo "✓ positions.json あり（リポジトリから取得）"
+            python -c "import json;d=json.load(open('positions.json'));jp=[p for p in d.get('jp',[])if p.get('status')=='open'];print('  日本株オープン:',len(jp),'件')"
+          else
+            echo "::warning::positions.json がありません。保有は空としてレポートされます。"
+          fi
+          if [ -f pnl_log.csv ]; then
+            echo "✓ pnl_log.csv あり"
+          else
+            echo "::warning::pnl_log.csv がありません。【累計損益】は 0 になります。"
+          fi
 
       - name: Run JP screening
         env:

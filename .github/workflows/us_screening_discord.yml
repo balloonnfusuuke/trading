@@ -34,6 +34,16 @@ jobs:
       - name: config.py を生成
         run: cp config.example.py config.py
 
+      - name: 状態ファイル（positions.json / pnl_log.csv は Git にコミット推奨）
+        run: |
+          if [ -f positions.json ]; then
+            echo "✓ positions.json あり"
+            python -c "import json;d=json.load(open('positions.json'));us=[p for p in d.get('us',[])if p.get('status')=='open'];print('  米国株オープン:',len(us),'件')"
+          else
+            echo "::warning::positions.json なし（保有は空扱い）"
+          fi
+          [ -f pnl_log.csv ] && echo "✓ pnl_log.csv あり" || echo "::warning::pnl_log.csv なし"
+
       - name: Run US screening
         env:
           PYTHONUNBUFFERED: "1"

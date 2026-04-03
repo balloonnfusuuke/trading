@@ -1,8 +1,6 @@
-# 秘密情報・ローカル専用（リポジトリに載せない）
+# 秘密情報（これだけは絶対にコミットしない）
 config.py
 scheduler_state.json
-positions.json
-pnl_log.csv
 .env
 .env.*
 
@@ -13,9 +11,15 @@ __pycache__/
 .venv/
 venv/
 
-# スクリーニング出力（任意でコミットしたい場合は次行を消す）
+# スクリーニング CSV（コミットしたい場合はこのブロックを削除）
 *_screening_*.csv
 screening_result_*.csv
 
-# 旧バックアップ内にも秘密設定があるため除外
 backup_v1/
+
+# ── positions.json / pnl_log.csv について ─────────────────────
+# GitHub Actions で「手元と同じ」Discord にするには、この2つをリポジトリに含める。
+# 　→ リポジトリは必ず Private にし、ローカルで取引後に push すること。
+# 含めたくない場合は下の2行のコメントを外して再び無視する。
+# positions.json
+# pnl_log.csv
