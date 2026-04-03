@@ -31,8 +31,12 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      - name: config.py を生成
+        run: cp config.example.py config.py
+
       - name: Run US screening
         env:
+          PYTHONUNBUFFERED: "1"
           TV_SESSION_ID: ${{ secrets.TV_SESSION_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python main.py --us-now

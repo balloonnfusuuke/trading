@@ -32,8 +32,13 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      # config.py は秘密のため Git に含めていない。CI では example を複製し Secrets は環境変数で上書き。
+      - name: config.py を生成
+        run: cp config.example.py config.py
+
       - name: Run JP screening
         env:
+          PYTHONUNBUFFERED: "1"
           TV_SESSION_ID: ${{ secrets.TV_SESSION_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python main.py --jp-now
