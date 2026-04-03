@@ -13,11 +13,21 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
+      - name: Secrets の確認
+        env:
+          TV_SESSION_ID: ${{ secrets.TV_SESSION_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$TV_SESSION_ID" ] || [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "::error::Settings → Secrets → Actions で TV_SESSION_ID と DISCORD_WEBHOOK_URL を両方設定してください（名前は大文字小文字まで一致）。"
+            exit 1
+          fi
 
       - name: Install deps
         run: pip install -r requirements.txt
